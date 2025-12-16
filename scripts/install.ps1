@@ -126,7 +126,7 @@ function Clone-Project {
     }
     else {
         try {
-            git clone https://github.com/CJackHwang/AIstudioProxyAPI.git
+            git clone https://github.com/pyf-feifei/AIstudioProxyAPI.git
             Set-Location "AIstudioProxyAPI"
             Log-Success "项目克隆成功 ✓"
         }

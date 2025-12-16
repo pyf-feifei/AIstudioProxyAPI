@@ -29,10 +29,10 @@
 
 ```bash
 # macOS/Linux 用户
-curl -sSL https://raw.githubusercontent.com/CJackHwang/AIstudioProxyAPI/main/scripts/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/pyf-feifei/AIstudioProxyAPI/main/scripts/install.sh | bash
 
 # Windows 用户 (PowerShell)
-iwr -useb https://raw.githubusercontent.com/CJackHwang/AIstudioProxyAPI/main/scripts/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/pyf-feifei/AIstudioProxyAPI/main/scripts/install.ps1 | iex
 ```
 
 ## 📋 手动安装步骤
@@ -57,7 +57,7 @@ curl -sSL https://install.python-poetry.org | python3 -
 ### 2. 克隆仓库
 
 ```bash
-git clone https://github.com/CJackHwang/AIstudioProxyAPI.git
+git clone https://github.com/pyf-feifei/AIstudioProxyAPI.git
 cd AIstudioProxyAPI
 ```
 

@@ -2,7 +2,7 @@
 
 将 Google AI Studio 网页界面转换为 OpenAI 兼容 API 的代理服务器。通过 Camoufox (反指纹检测 Firefox) 和 Playwright 自动化，提供稳定的 API 访问。
 
-[![Star History Chart](https://api.star-history.com/svg?repos=CJackHwang/AIstudioProxyAPI&type=Date)](https://www.star-history.com/#CJackHwang/AIstudioProxyAPI&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=pyf-feifei/AIstudioProxyAPI&type=Date)](https://www.star-history.com/#pyf-feifei/AIstudioProxyAPI&Date)
 
 > 本项目由 [ZMTO](https://zmto.com/) 慷慨赞助服务器支持。
 
@@ -37,7 +37,7 @@
 
 ```bash
 # 1️⃣ 克隆并安装
-git clone https://github.com/CJackHwang/AIstudioProxyAPI.git
+git clone https://github.com/pyf-feifei/AIstudioProxyAPI.git
 cd AIstudioProxyAPI
 poetry install
 
