@@ -53,12 +53,15 @@ class ServerState:
 
         # --- Playwright/Browser State ---
         self.playwright_manager: Optional["AsyncPlaywright"] = None
-        self.browser_instance: Optional["AsyncBrowser"] = None
-        self.page_instance: Optional["AsyncPage"] = None
+        self.browser_instance: Optional["AsyncBrowser"] = None  # 向后兼容：保留单实例引用
+        self.page_instance: Optional["AsyncPage"] = None  # 向后兼容：保留单实例引用
         self.is_playwright_ready: bool = False
         self.is_browser_connected: bool = False
         self.is_page_ready: bool = False
         self.is_initializing: bool = False
+        
+        # --- Multi-Instance Support ---
+        self.use_multi_instance: bool = False  # 是否启用多实例模式
 
         # --- Proxy Configuration ---
         self.PLAYWRIGHT_PROXY_SETTINGS: Optional[Dict[str, str]] = None

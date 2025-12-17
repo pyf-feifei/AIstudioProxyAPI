@@ -621,7 +621,7 @@ export TRACE_LOGS_ENABLED=true
 
 如果问题仍未解决：
 
-1. 查看项目的 [GitHub Issues](https://github.com/pyf-feifei/AIstudioProxyAPI/issues)
+1. 查看项目的 [GitHub Issues](https://github.com/CJackHwang/AIstudioProxyAPI/issues)
 2. 提交新的 Issue 并包含：
    - 详细的错误描述
    - 相关的日志文件内容

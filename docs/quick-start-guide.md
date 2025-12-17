@@ -44,7 +44,7 @@ python3 --version
 
 ```bash
 # 下载并执行安装脚本
-curl -sSL https://raw.githubusercontent.com/pyf-feifei/AIstudioProxyAPI/main/scripts/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/CJackHwang/AIstudioProxyAPI/main/scripts/install.sh | bash
 
 # 进入项目目录
 cd AIstudioProxyAPI
@@ -56,7 +56,7 @@ cd AIstudioProxyAPI
 
 ```powershell
 # 下载并执行安装脚本
-iwr -useb https://raw.githubusercontent.com/pyf-feifei/AIstudioProxyAPI/main/scripts/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/CJackHwang/AIstudioProxyAPI/main/scripts/install.ps1 | iex
 
 # 进入项目目录
 cd AIstudioProxyAPI
@@ -106,7 +106,7 @@ poetry --version
 ### 步骤 2: 克隆项目
 
 ```bash
-git clone https://github.com/pyf-feifei/AIstudioProxyAPI.git
+git clone https://github.com/CJackHwang/AIstudioProxyAPI.git
 cd AIstudioProxyAPI
 ```
 
@@ -479,7 +479,7 @@ ls -la auth_profiles/active/
 1. **查看文档** - 本项目包含详细的文档
 2. **查看日志** - `logs/app.log` 包含详细的运行日志
 3. **检查快照** - `errors_py/` 目录包含错误时的页面快照
-4. **提交 Issue** - [GitHub Issues](https://github.com/pyf-feifei/AIstudioProxyAPI/issues)
+4. **提交 Issue** - [GitHub Issues](https://github.com/CJackHwang/AIstudioProxyAPI/issues)
 5. **社区讨论** - [Linux.do 社区](https://linux.do/)
 
 ---

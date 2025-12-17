@@ -1,10 +1,11 @@
 import logging
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from ..dependencies import get_logger
+from .. import auth_utils
 
 
 class ApiKeyRequest(BaseModel):
@@ -15,7 +16,44 @@ class ApiKeyTestRequest(BaseModel):
     key: str
 
 
-async def get_api_keys(logger: logging.Logger = Depends(get_logger)):
+async def verify_api_key_access(request: Request):
+    """验证 API 密钥管理端点的访问权限
+    
+    如果配置了 API 密钥，则需要提供有效的 API 密钥
+    如果没有配置 API 密钥，则允许访问（向后兼容）
+    """
+    # 如果未配置 API 密钥，允许访问
+    auth_utils.initialize_keys()
+    if not auth_utils.API_KEYS:
+        return True
+    
+    # 从请求头获取 API 密钥
+    api_key = None
+    
+    # 1. 优先检查标准的 Authorization: Bearer <token> 头
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        api_key = auth_header[7:]  # 移除 "Bearer " 前缀
+    
+    # 2. 回退到自定义的 X-API-Key 头
+    if not api_key:
+        api_key = request.headers.get("X-API-Key")
+    
+    # 验证 API 密钥
+    if not api_key or not auth_utils.verify_api_key(api_key):
+        raise HTTPException(
+            status_code=401,
+            detail="需要有效的 API 密钥才能访问此端点。请使用 'Authorization: Bearer <your_key>' 或 'X-API-Key: <your_key>' 头。"
+        )
+    
+    return True
+
+
+async def get_api_keys(
+    request: Request,
+    logger: logging.Logger = Depends(get_logger),
+    _: bool = Depends(verify_api_key_access)
+):
     from .. import auth_utils
 
     try:
@@ -30,7 +68,10 @@ async def get_api_keys(logger: logging.Logger = Depends(get_logger)):
 
 
 async def add_api_key(
-    request: ApiKeyRequest, logger: logging.Logger = Depends(get_logger)
+    http_request: Request,
+    request: ApiKeyRequest,
+    logger: logging.Logger = Depends(get_logger),
+    _: bool = Depends(verify_api_key_access)
 ):
     from .. import auth_utils
 
@@ -88,7 +129,10 @@ async def test_api_key(
 
 
 async def delete_api_key(
-    request: ApiKeyRequest, logger: logging.Logger = Depends(get_logger)
+    http_request: Request,
+    request: ApiKeyRequest,
+    logger: logging.Logger = Depends(get_logger),
+    _: bool = Depends(verify_api_key_access)
 ):
     from .. import auth_utils
 

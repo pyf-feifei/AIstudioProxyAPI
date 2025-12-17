@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置管理 - AI Studio Proxy</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 { margin-bottom: 30px; color: #333; }
+        .section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+        }
+        .section h2 {
+            margin-bottom: 20px;
+            color: #555;
+            font-size: 18px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f0f0f0;
+            font-weight: 600;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 8px;
+        }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        button:hover { opacity: 0.9; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status-ready { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .upload-area:hover { border-color: #007bff; }
+        input[type="file"] { margin-top: 10px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        .stat-label { color: #666; font-size: 12px; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #333; margin-top: 5px; }
+        input[type="text"], input[type="password"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 300px;
+            margin-right: 8px;
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .login-container h2 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .login-form input {
+            width: 100%;
+        }
+        .login-form button {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .masked-key {
+            font-family: monospace;
+            color: #666;
+        }
+        .logout-btn {
+            float: right;
+            margin-top: -40px;
+        }
+        #mainContent {
+            display: none;
+        }
+        #mainContent.authenticated {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录界面 -->
+    <div id="loginContainer" class="login-container">
+        <h2>🔐 配置管理登录</h2>
+        <div class="login-form">
+            <input type="password" id="loginKey" placeholder="请输入 API 密钥" autocomplete="off">
+            <button class="btn-primary" onclick="handleLogin()">登录</button>
+            <p style="font-size: 12px; color: #666; text-align: center; margin-top: 10px;">
+                提示：使用已配置的 API 密钥登录
+            </p>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div id="mainContent" class="container">
+        <h1>🔧 配置管理 <button class="btn-danger logout-btn" onclick="handleLogout()">退出登录</button></h1>
+
+        <!-- 负载均衡配置 -->
+        <div class="section">
+            <h2>负载均衡配置</h2>
+            <div>
+                <label>策略: </label>
+                <select id="strategySelect">
+                    <option value="round_robin">轮询 (Round Robin)</option>
+                    <option value="random">随机 (Random)</option>
+                    <option value="least_connections">最少连接 (Least Connections)</option>
+                </select>
+                <button class="btn-primary" onclick="updateStrategy()">更新策略</button>
+            </div>
+            <div class="stats-grid" id="lbStats"></div>
+        </div>
+
+        <!-- 实例列表 -->
+        <div class="section">
+            <h2>浏览器实例</h2>
+            <button class="btn-primary" onclick="refreshInstances()">刷新</button>
+            <table id="instancesTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>认证文件</th>
+                        <th>状态</th>
+                        <th>请求数</th>
+                        <th>错误数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="instancesBody"></tbody>
+            </table>
+        </div>
+
+        <!-- 认证文件管理 -->
+        <div class="section">
+            <h2>认证文件管理</h2>
+            <button class="btn-primary" onclick="refreshAuthFiles()">刷新列表</button>
+            <div class="upload-area">
+                <p>上传认证文件</p>
+                <input type="file" id="authFileInput" accept=".json">
+                <button class="btn-success" onclick="uploadAuthFile()">上传</button>
+            </div>
+            <table id="authFilesTable" style="margin-top: 20px;">
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>大小</th>
+                        <th>路径</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="authFilesBody"></tbody>
+            </table>
+        </div>
+
+        <!-- API 密钥管理 -->
+        <div class="section">
+            <h2>API 密钥管理</h2>
+            <button class="btn-primary" onclick="refreshApiKeys()">刷新列表</button>
+            <div style="margin-top: 15px;">
+                <input type="text" id="newApiKey" placeholder="输入新 API 密钥（至少 8 个字符）">
+                <button class="btn-success" onclick="addApiKey()">添加密钥</button>
+                <button class="btn-primary" onclick="testApiKey()">测试密钥</button>
+            </div>
+            <table id="apiKeysTable" style="margin-top: 20px;">
+                <thead>
+                    <tr>
+                        <th>密钥（已脱敏）</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="apiKeysBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/config';
+        const API_KEYS_BASE = '/api/keys';
+        let authToken = null;
+
+        // 检查登录状态
+        function checkAuth() {
+            const tokenFull = localStorage.getItem('config_auth_token_full');
+            if (tokenFull) {
+                authToken = tokenFull;
+                showMainContent();
+            } else {
+                showLogin();
+            }
+        }
+
+        // 显示登录界面
+        function showLogin() {
+            document.getElementById('loginContainer').style.display = 'block';
+            document.getElementById('mainContent').classList.remove('authenticated');
+            authToken = null;
+        }
+
+        // 显示主内容
+        function showMainContent() {
+            document.getElementById('loginContainer').style.display = 'none';
+            document.getElementById('mainContent').classList.add('authenticated');
+            loadStats();
+            loadApiKeys();
+        }
+
+        // 登录处理
+        async function handleLogin() {
+            const key = document.getElementById('loginKey').value.trim();
+            if (!key) {
+                alert('请输入 API 密钥');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_KEYS_BASE}/test`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key })
+                });
+
+                const result = await response.json();
+                if (result.valid) {
+                    // 保存完整密钥到 localStorage（用于后续请求）
+                    localStorage.setItem('config_auth_token', key.substring(0, 8)); // 用于显示
+                    localStorage.setItem('config_auth_token_full', key); // 用于认证
+                    authToken = key;
+                    showMainContent();
+                    document.getElementById('loginKey').value = '';
+                } else {
+                    alert('API 密钥无效，请检查后重试');
+                }
+            } catch (e) {
+                alert('登录失败: ' + e.message);
+            }
+        }
+
+        // 退出登录
+        function handleLogout() {
+            localStorage.removeItem('config_auth_token');
+            localStorage.removeItem('config_auth_token_full');
+            authToken = null;
+            showLogin();
+        }
+
+        // 获取认证头
+        function getAuthHeaders() {
+            // 从 localStorage 读取完整密钥（如果存在）
+            const storedKey = localStorage.getItem('config_auth_token_full');
+            if (storedKey) {
+                return {
+                    'Authorization': `Bearer ${storedKey}`,
+                    'X-API-Key': storedKey
+                };
+            }
+            // 如果没有存储的密钥，返回空（允许未配置密钥时访问）
+            return {};
+        }
+
+        async function fetchJSON(url, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders(),
+                ...options.headers
+            };
+            const res = await fetch(url, {
+                ...options,
+                headers
+            });
+            if (res.status === 401) {
+                // 未授权，清除登录状态并显示登录界面
+                localStorage.removeItem('config_auth_token');
+                authToken = null;
+                showLogin();
+                const errorText = await res.text();
+                let errorMsg = '登录已过期，请重新登录';
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    if (errorJson.detail) {
+                        errorMsg = errorJson.detail;
+                    }
+                } catch (e) {
+                    // 忽略 JSON 解析错误
+                }
+                throw new Error(errorMsg);
+            }
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`HTTP ${res.status}: ${errorText}`);
+            }
+            return res.json();
+        }
+
+        async function loadStats() {
+            try {
+                const stats = await fetchJSON(`${API_BASE}/stats`);
+                updateLBStats(stats.load_balance);
+                updateInstances(stats.instances);
+                updateAuthFiles(stats.auth_files);
+            } catch (e) {
+                console.error('加载统计失败:', e);
+                if (e.message.includes('登录已过期')) {
+                    alert(e.message);
+                }
+            }
+        }
+
+        // API 密钥管理函数
+        function maskApiKey(key) {
+            if (!key || key.length < 8) return '****';
+            return key.substring(0, 4) + '...' + key.substring(key.length - 4);
+        }
+
+        async function loadApiKeys() {
+            try {
+                const response = await fetchJSON(`${API_KEYS_BASE}`);
+                updateApiKeys(response.keys || []);
+            } catch (e) {
+                console.error('加载 API 密钥列表失败:', e);
+                if (e.message.includes('登录已过期')) {
+                    alert(e.message);
+                }
+            }
+        }
+
+        function updateApiKeys(keys) {
+            const tbody = document.getElementById('apiKeysBody');
+            if (keys.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #999;">暂无 API 密钥</td></tr>';
+                return;
+            }
+            tbody.innerHTML = keys.map(key => `
+                <tr>
+                    <td class="masked-key">${maskApiKey(key.value)}</td>
+                    <td><span class="status status-ready">${key.status || '有效'}</span></td>
+                    <td>
+                        <button class="btn-danger" onclick="deleteApiKey('${key.value}')">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function addApiKey() {
+            const keyValue = document.getElementById('newApiKey').value.trim();
+            if (!keyValue) {
+                alert('请输入 API 密钥');
+                return;
+            }
+            if (keyValue.length < 8) {
+                alert('API 密钥至少需要 8 个字符');
+                return;
+            }
+
+            try {
+                await fetchJSON(`${API_KEYS_BASE}`, {
+                    method: 'POST',
+                    body: JSON.stringify({ key: keyValue })
+                });
+                alert('API 密钥添加成功');
+                document.getElementById('newApiKey').value = '';
+                loadApiKeys();
+            } catch (e) {
+                const errorMsg = e.message.includes('已存在') ? '该 API 密钥已存在' : 
+                               e.message.includes('格式') ? '无效的 API 密钥格式' : 
+                               e.message;
+                alert('添加失败: ' + errorMsg);
+            }
+        }
+
+        async function testApiKey() {
+            const keyValue = document.getElementById('newApiKey').value.trim();
+            if (!keyValue) {
+                alert('请输入要测试的 API 密钥');
+                return;
+            }
+
+            try {
+                const result = await fetchJSON(`${API_KEYS_BASE}/test`, {
+                    method: 'POST',
+                    body: JSON.stringify({ key: keyValue })
+                });
+                if (result.valid) {
+                    alert('✅ API 密钥有效');
+                } else {
+                    alert('❌ API 密钥无效: ' + (result.message || '未知原因'));
+                }
+            } catch (e) {
+                alert('测试失败: ' + e.message);
+            }
+        }
+
+        async function deleteApiKey(keyValue) {
+            if (!confirm(`确定要删除 API 密钥 ${maskApiKey(keyValue)} 吗？`)) return;
+            try {
+                await fetchJSON(`${API_KEYS_BASE}`, {
+                    method: 'DELETE',
+                    body: JSON.stringify({ key: keyValue })
+                });
+                alert('删除成功');
+                loadApiKeys();
+            } catch (e) {
+                alert('删除失败: ' + e.message);
+            }
+        }
+
+        async function refreshApiKeys() {
+            await loadApiKeys();
+        }
+
+        function updateLBStats(lb) {
+            const container = document.getElementById('lbStats');
+            container.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">总实例数</div>
+                    <div class="stat-value">${lb.total_instances}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">启用实例</div>
+                    <div class="stat-value">${lb.enabled_instances}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">当前策略</div>
+                    <div class="stat-value">${lb.strategy}</div>
+                </div>
+            `;
+            document.getElementById('strategySelect').value = lb.strategy;
+        }
+
+        function updateInstances(instances) {
+            const tbody = document.getElementById('instancesBody');
+            tbody.innerHTML = Object.values(instances).map(inst => `
+                <tr>
+                    <td>${inst.id}</td>
+                    <td>${inst.auth_file}</td>
+                    <td><span class="status ${inst.is_ready ? 'status-ready' : 'status-error'}">
+                        ${inst.is_ready ? '就绪' : '未就绪'}
+                    </span></td>
+                    <td>${inst.request_count}</td>
+                    <td>${inst.error_count}</td>
+                    <td>
+                        <button class="btn-primary" onclick="toggleInstance('${inst.id}', ${!inst.enabled})">
+                            ${inst.enabled ? '禁用' : '启用'}
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateAuthFiles(files) {
+            const tbody = document.getElementById('authFilesBody');
+            tbody.innerHTML = files.map(file => `
+                <tr>
+                    <td>${file.filename}</td>
+                    <td>${(file.size / 1024).toFixed(2)} KB</td>
+                    <td>${file.path}</td>
+                    <td>
+                        <button class="btn-danger" onclick="deleteAuthFile('${file.filename}')">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function updateStrategy() {
+            const strategy = document.getElementById('strategySelect').value;
+            try {
+                await fetchJSON(`${API_BASE}/load-balance/strategy`, {
+                    method: 'POST',
+                    body: JSON.stringify({ strategy })
+                });
+                alert('策略更新成功');
+                loadStats();
+            } catch (e) {
+                alert('更新失败: ' + e.message);
+            }
+        }
+
+        async function toggleInstance(id, enabled) {
+            try {
+                await fetchJSON(`${API_BASE}/instances/${id}/enable?enabled=${enabled}`, {
+                    method: 'POST'
+                });
+                loadStats();
+            } catch (e) {
+                alert('操作失败: ' + e.message);
+            }
+        }
+
+        async function refreshInstances() {
+            await loadStats();
+        }
+
+        async function refreshAuthFiles() {
+            await loadStats();
+        }
+
+        async function uploadAuthFile() {
+            const input = document.getElementById('authFileInput');
+            const file = input.files[0];
+            if (!file) {
+                alert('请选择文件');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                await fetch(`${API_BASE}/auth-files/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                alert('上传成功');
+                input.value = '';
+                loadStats();
+            } catch (e) {
+                alert('上传失败: ' + e.message);
+            }
+        }
+
+        async function deleteAuthFile(filename) {
+            if (!confirm(`确定要删除 ${filename} 吗？`)) return;
+            try {
+                await fetchJSON(`${API_BASE}/auth-files/${filename}`, {
+                    method: 'DELETE'
+                });
+                alert('删除成功');
+                loadStats();
+            } catch (e) {
+                alert('删除失败: ' + e.message);
+            }
+        }
+
+        // 初始化
+        // 页面加载时检查是否需要登录
+        window.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+            if (authToken) {
+                setInterval(loadStats, 5000); // 每5秒刷新
+                setInterval(loadApiKeys, 10000); // 每10秒刷新密钥列表
+            }
+
+            // 支持 Enter 键登录
+            const loginKeyInput = document.getElementById('loginKey');
+            if (loginKeyInput) {
+                loginKeyInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        handleLogin();
+                    }
+                });
+            }
+        });
+
+        // 如果 DOMContentLoaded 已经触发，立即执行
+        if (document.readyState === 'loading') {
+            // DOM 还在加载中，等待 DOMContentLoaded
+        } else {
+            // DOM 已经加载完成，立即执行
+            checkAuth();
+            if (authToken) {
+                setInterval(loadStats, 5000); // 每5秒刷新
+                setInterval(loadApiKeys, 10000); // 每10秒刷新密钥列表
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+

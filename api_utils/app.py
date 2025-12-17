@@ -4,6 +4,7 @@ FastAPI应用初始化和生命周期管理
 
 import asyncio
 import multiprocessing
+import os
 import queue  # <-- FIX: Added missing import for queue.Empty
 import sys
 from asyncio import Lock, Queue
@@ -129,10 +130,14 @@ async def _initialize_browser_and_page() -> None:
     """Initialize Playwright browser connection and page."""
     from playwright.async_api import async_playwright
 
-    state.logger.info("Starting Playwright...")
-    state.playwright_manager = await async_playwright().start()
-    state.is_playwright_ready = True
-    state.logger.info("Playwright started.")
+    # 如果 Playwright 已经启动，跳过
+    if not state.is_playwright_ready or state.playwright_manager is None:
+        state.logger.info("Starting Playwright...")
+        state.playwright_manager = await async_playwright().start()
+        state.is_playwright_ready = True
+        state.logger.info("Playwright started.")
+    else:
+        state.logger.info("Playwright already started, reusing existing instance.")
 
     ws_endpoint = get_environment_variable("CAMOUFOX_WS_ENDPOINT")
     launch_mode = get_environment_variable("LAUNCH_MODE", "unknown")
@@ -229,7 +234,64 @@ async def lifespan(app: FastAPI):
 
     try:
         await _start_stream_proxy()
-        await _initialize_browser_and_page()
+        
+        # 必须先启动 Playwright（多实例和单实例都需要）
+        from playwright.async_api import async_playwright
+        state.logger.info("Starting Playwright...")
+        state.playwright_manager = await async_playwright().start()
+        state.is_playwright_ready = True
+        state.logger.info("Playwright started.")
+        
+        # 检查是否启用多实例模式
+        use_multi_instance = get_environment_variable("ENABLE_MULTI_INSTANCE", "false").lower() == "true"
+        
+        if use_multi_instance:
+            # 多实例初始化
+            from api_utils.multi_instance_init import initialize_multiple_browsers
+            from api_utils.instance_manager import instance_manager
+            success = await initialize_multiple_browsers(state.playwright_manager)
+            if success:
+                # 至少有一个实例初始化成功
+                state.use_multi_instance = True
+                # 设置默认实例用于向后兼容
+                instances = instance_manager.get_enabled_instances()
+                if instances:
+                    state.browser_instance = instances[0].browser
+                    state.page_instance = instances[0].page
+                    state.is_browser_connected = True
+                    state.is_page_ready = True
+            else:
+                # 回退到单实例模式
+                await _initialize_browser_and_page()
+                # 将单实例添加到管理器（用于兼容）
+                if state.browser_instance and state.page_instance:
+                    from api_utils.instance_manager import BrowserInstance
+                    instance = BrowserInstance(
+                        id="default",
+                        auth_file=os.environ.get("ACTIVE_AUTH_JSON_PATH", ""),
+                        browser=state.browser_instance,
+                        page=state.page_instance,
+                        ws_endpoint=os.environ.get("CAMOUFOX_WS_ENDPOINT", ""),
+                        port=int(get_environment_variable("DEFAULT_CAMOUFOX_PORT", "9222")),
+                        is_ready=state.is_page_ready,
+                    )
+                    instance_manager.add_instance(instance)
+        else:
+            # 单实例初始化（默认）
+            await _initialize_browser_and_page()
+            # 将单实例添加到管理器（用于兼容）
+            if state.browser_instance and state.page_instance:
+                from api_utils.instance_manager import BrowserInstance, instance_manager
+                instance = BrowserInstance(
+                    id="default",
+                    auth_file=os.environ.get("ACTIVE_AUTH_JSON_PATH", ""),
+                    browser=state.browser_instance,
+                    page=state.page_instance,
+                    ws_endpoint=os.environ.get("CAMOUFOX_WS_ENDPOINT", ""),
+                    port=int(get_environment_variable("DEFAULT_CAMOUFOX_PORT", "9222")),
+                    is_ready=state.is_page_ready,
+                )
+                instance_manager.add_instance(instance)
 
         launch_mode = get_environment_variable("LAUNCH_MODE", "unknown")
         if state.is_page_ready or launch_mode == "direct_debug_no_browser":
@@ -361,5 +423,11 @@ def create_app() -> FastAPI:
     app.post("/api/keys")(add_api_key)
     app.post("/api/keys/test")(test_api_key)
     app.delete("/api/keys")(delete_api_key)
+
+    # 配置管理端点（负载均衡和认证文件管理）
+    from .routers.config import router as config_router
+    from .routers.config_page import get_config_page
+    app.include_router(config_router)
+    app.get("/config")(get_config_page)
 
     return app

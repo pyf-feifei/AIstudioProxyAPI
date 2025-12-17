@@ -88,7 +88,7 @@ clone_project() {
         log_warning "项目目录已存在，跳过克隆"
         cd AIstudioProxyAPI
     else
-        git clone https://github.com/pyf-feifei/AIstudioProxyAPI.git
+        git clone https://github.com/CJackHwang/AIstudioProxyAPI.git
         cd AIstudioProxyAPI
         log_success "项目克隆成功 ✓"
     fi

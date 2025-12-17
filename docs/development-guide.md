@@ -14,7 +14,7 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/pyf-feifei/AIstudioProxyAPI.git
+git clone https://github.com/CJackHwang/AIstudioProxyAPI.git
 cd AIstudioProxyAPI
 
 # 安装 Poetry
